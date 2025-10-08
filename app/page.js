@@ -16,10 +16,10 @@ const SunTimes = dynamic(() => import('./components/SunTimes'), { ssr: false });
 export default function Page() {
   const prayerTimesData = {
     fajr: { adhan: "05:35", iqama: "06:30" },
-    dhuhr: { adhan: "13:10", iqama: "13:30" },
-    asr: { adhan: "17:01", iqama: "17:15" },
+    dhuhr: { adhan: "13:10", iqama: "13:45" },
+    asr: { adhan: "17:01", iqama: "17:30" },
     maghrib: { adhan: "19:48", iqama: "19:53" },
-    isha: { adhan: "21:15", iqama: "21:30" },
+    isha: { adhan: "21:15", iqama: "20:30" },
     jummah: { adhan: "13:10", iqama: "13:45" },
   };
 
