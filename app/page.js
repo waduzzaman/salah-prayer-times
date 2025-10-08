@@ -70,7 +70,9 @@ export default function Page() {
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-    setCountdown(`${hours % 12 || 12}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`);
+    setCountdown(`${hours}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`);
+
+
   }, [currentTime]);
 
   const prayerIcons = {
