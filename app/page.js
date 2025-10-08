@@ -89,17 +89,18 @@ export default function Page() {
       <Header currentTime={currentTime} />
       <Countdown nextPrayer={nextIqama} countdown={countdown} />
 
-      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-        {displayPrayers.map((p) => (
-          <PrayerCard
-            key={p}
-            prayer={p}
-            times={prayerTimesData[p]}
-            icon={prayerIcons[p]}
-            formatName={formatPrayerName}
-          />
-        ))}
-      </section>
+  <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+  {displayPrayers.map((p) => (
+    <PrayerCard
+      key={p}
+      prayer={p}
+      times={prayerTimesData[p]}
+      icon={prayerIcons[p]}
+      formatName={formatPrayerName}
+    />
+  ))}
+</section>
+
 
       <Footer />
     </main>
