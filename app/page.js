@@ -18,7 +18,7 @@ export default function Page() {
     fajr: { adhan: "05:35", iqama: "06:30" },
     dhuhr: { adhan: "13:10", iqama: "13:45" },
     asr: { adhan: "17:01", iqama: "17:15" },
-    maghrib: { adhan: "19:48", iqama: "19:50" },
+    maghrib: { adhan: "18:47", iqama: "18:50" },
     isha: { adhan: "21:15", iqama: "20:30" },
     jummah: { adhan: "13:10", iqama: "13:45" },
   };
