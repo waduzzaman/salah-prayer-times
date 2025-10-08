@@ -77,8 +77,11 @@ export default function Page ()
         let adhanTime, iqamaTime;
         if ( n === 'maghrib' && sunsetTime )
         {
-          adhanTime = new Date( sunsetTime.getTime() + 2 * 60 * 1000 ); // 1 min after sunset
-          iqamaTime = new Date( adhanTime.getTime() + 1 * 60 * 1000 ); // 1 min after Adhan
+          // Set Adhan 2 minutes after sunset
+          adhanTime = new Date( sunsetTime.getTime() + 2 * 60 * 1000 );
+
+          // Set Iqama 1 minute after Adhan
+          iqamaTime = new Date( adhanTime.getTime() + 1 * 60 * 1000 );
         } else
         {
           adhanTime = parseTime( t.adhan );
@@ -106,12 +109,12 @@ export default function Page ()
   }, [ currentTime, sunsetTime ] );
 
   const prayerIcons = {
-    fajr: <Sunrise className="w-10 h-10 md:w-12 md:h-12 text-amber-400/80" />,
-    dhuhr: <Sun className="w-10 h-10 md:w-12 md:h-12 text-amber-400/80" />,
-    jummah: <Sun className="w-10 h-10 md:w-12 md:h-12 text-amber-400/80" />,
-    asr: <Cloudy className="w-10 h-10 md:w-12 md:h-12 text-amber-400/80" />,
-    maghrib: <Sunset className="w-10 h-10 md:w-12 md:h-12 text-amber-400/80" />,
-    isha: <Moon className="w-10 h-10 md:w-12 md:h-12 text-amber-400/80" />,
+    fajr: <Sunrise className="w-10 h-10 md:w-12 md:h-12 text-amber-100/80" />,
+    dhuhr: <Sun className="w-10 h-10 md:w-12 md:h-12 text-amber-100/80" />,
+    jummah: <Sun className="w-10 h-10 md:w-12 md:h-12 text-amber-100/80" />,
+    asr: <Cloudy className="w-10 h-10 md:w-12 md:h-12 text-amber-100/80" />,
+    maghrib: <Sunset className="w-10 h-10 md:w-12 md:h-12 text-amber-100/80" />,
+    isha: <Moon className="w-10 h-10 md:w-12 md:h-12 text-amber-100/80" />,
   };
 
   const displayPrayers = isJummahDay ? [ 'fajr', 'jummah', 'asr', 'maghrib', 'isha' ] : [ 'fajr', 'dhuhr', 'asr', 'maghrib', 'isha' ];
@@ -143,7 +146,7 @@ export default function Page ()
   transition-all duration-300 ease-in-out
 ">
 
-        <div className="mb-4 text-amber-400 text-3xl p-2 rounded-full bg-amber-500/20">
+        <div className="mb-4 text-amber-00 text-3xl p-2 rounded-full bg-amber-500/20">
           { icon }
         </div>
         <h2 className="text-3xl font-sans font-extrabold text-white mb-4 tracking-wider uppercase">
