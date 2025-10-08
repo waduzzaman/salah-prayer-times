@@ -16,7 +16,7 @@ export default function Page ()
     dhuhr: { adhan: "13:10", iqama: "13:45" },
     asr: { adhan: "17:01", iqama: "17:15" },
     maghrib: { adhan: null, iqama: null }, // dynamic
-    isha: { adhan: "21:15", iqama: "21:30" },
+    isha: { adhan: "20:15", iqama: "20:30" },
     jummah: { adhan: "13:10", iqama: "13:45" },
   };
 
