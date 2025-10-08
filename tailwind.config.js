@@ -7,8 +7,7 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-         sun: ['"Sun Serif"', 'serif'],      // Sun Serif
-        montserrat: ['Montserrat', 'sans-serif'], // Montserrat
+        amiri: ['Amiri', 'serif'],
       },
       colors: {
         emerald: {

@@ -1,11 +1,17 @@
 'use client';
 
+
 import { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Countdown from './components/Countdown';
 import PrayerCard from './components/PrayerCard';
 import Footer from './components/Footer';
 import { Sunrise, Sun, Cloudy, Sunset, Moon } from 'lucide-react';
+
+import dynamic from 'next/dynamic';
+
+const SunTimes = dynamic(() => import('./components/SunTimes'), { ssr: false });
+
 
 export default function Page() {
   const prayerTimesData = {
