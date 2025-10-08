@@ -1,103 +1,101 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import { useState, useEffect } from 'react';
+import Header from './components/Header';
+import Countdown from './components/Countdown';
+import PrayerCard from './components/PrayerCard';
+import Footer from './components/Footer';
+import { Sunrise, Sun, Cloudy, Sunset, Moon } from 'lucide-react';
+
+export default function Page() {
+  const prayerTimesData = {
+    fajr: { adhan: "05:35", iqama: "06:30" },
+    dhuhr: { adhan: "13:10", iqama: "13:30" },
+    asr: { adhan: "17:01", iqama: "17:15" },
+    maghrib: { adhan: "19:48", iqama: "19:53" },
+    isha: { adhan: "21:15", iqama: "21:30" },
+    jummah: { adhan: "13:10", iqama: "13:45" },
+  };
+
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [nextIqama, setNextIqama] = useState(null);
+  const [countdown, setCountdown] = useState('');
+  const [isJummahDay, setIsJummahDay] = useState(false);
+
+  const parseTime = (timeStr) => {
+    const [h, m] = timeStr.split(':');
+    const d = new Date();
+    d.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+    return d;
+  };
+
+  const formatPrayerName = (name) => isJummahDay && name === 'dhuhr' ? "Jumu'ah" : name.charAt(0).toUpperCase() + name.slice(1);
+
+  // Update time every second
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Next Iqama countdown
+  useEffect(() => {
+    const now = new Date();
+    const isJummah = now.getDay() === 5;
+    setIsJummahDay(isJummah);
+
+    const dailyPrayers = isJummah ? { ...prayerTimesData, dhuhr: prayerTimesData.jummah } : prayerTimesData;
+
+    const iqamaEvents = Object.entries(dailyPrayers)
+      .filter(([n]) => n !== 'jummah')
+      .map(([n, t]) => ({ name: `${formatPrayerName(n)} Iqama`, time: parseTime(t.iqama) }))
+      .sort((a, b) => a.time - b.time);
+
+    let nextEvent = iqamaEvents.find(p => p.time > now);
+    if (!nextEvent) {
+      const tomorrowFajrIqama = parseTime(prayerTimesData.fajr.iqama);
+      tomorrowFajrIqama.setDate(tomorrowFajrIqama.getDate() + 1);
+      nextEvent = { name: 'Fajr Iqama', time: tomorrowFajrIqama };
+    }
+
+    setNextIqama(nextEvent);
+
+    const diff = nextEvent.time - now;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    setCountdown(`${hours % 12 || 12}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`);
+  }, [currentTime]);
+
+  const prayerIcons = {
+    fajr: <Sunrise className="w-8 h-8 text-amber-200/80" />,
+    dhuhr: <Sun className="w-8 h-8 text-amber-200/80" />,
+    jummah: <Sun className="w-8 h-8 text-amber-200/80" />,
+    asr: <Cloudy className="w-8 h-8 text-amber-200/80" />,
+    maghrib: <Sunset className="w-8 h-8 text-amber-200/80" />,
+    isha: <Moon className="w-8 h-8 text-amber-200/80" />,
+  };
+
+  const displayPrayers = isJummahDay ? ['fajr','jummah','asr','maghrib','isha'] : ['fajr','dhuhr','asr','maghrib','isha'];
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <main className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center p-6">
+      <Header currentTime={currentTime} />
+      <Countdown nextPrayer={nextIqama} countdown={countdown} />
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+        {displayPrayers.map((p) => (
+          <PrayerCard
+            key={p}
+            prayer={p}
+            times={prayerTimesData[p]}
+            icon={prayerIcons[p]}
+            formatName={formatPrayerName}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        ))}
+      </section>
+
+      <Footer />
+    </main>
   );
 }
