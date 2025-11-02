@@ -12,11 +12,11 @@ const SunTimes = dynamic( () => import( './components/SunTimes' ), { ssr: false 
 export default function Page ()
 {
   const prayerTimesData = {
-    fajr: { adhan: "06:30", iqama: "06:40" },
-    dhuhr: { adhan: "13:10", iqama: "13:45" },
-    asr: { adhan: "16:35", iqama: "16:45" },
+    fajr: { adhan: "06:05", iqama: "06:10" },
+    dhuhr: { adhan: "12:50", iqama: "13:00" },
+    asr: { adhan: "15:35", iqama: "15:45" },
     maghrib: { adhan: null, iqama: null }, // dynamic
-    isha: { adhan: "19:35", iqama: "19:45" },
+    isha: { adhan: "19:25", iqama: "19:35" },
     jummah: { adhan: "13:10", iqama: "13:45" },
   };
 
