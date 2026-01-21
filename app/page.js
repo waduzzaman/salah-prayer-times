@@ -78,10 +78,10 @@ export default function Page ()
         if ( n === 'maghrib' && sunsetTime )
         {
           // Set Adhan 2 minutes after sunset
-          adhanTime = new Date( sunsetTime.getTime() + 2 * 60 * 1000 );
+          adhanTime = new Date( sunsetTime.getTime() + 1 * 60 * 1000 );
 
           // Set Iqama 1 minute after Adhan
-          iqamaTime = new Date( adhanTime.getTime() + 1 * 60 * 1000 );
+          iqamaTime = new Date( adhanTime.getTime() + 3 * 60 * 1000 );
         } else
         {
           adhanTime = parseTime( t.adhan );
