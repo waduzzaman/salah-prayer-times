@@ -14,7 +14,7 @@ export default function Page ()
   const prayerTimesData = {
     fajr: { adhan: "06:25", iqama: "06:35" },
     dhuhr: { adhan: "12:50", iqama: "13:00" },
-    asr: { adhan: "15:50", iqama: "16:00" },
+    asr: { adhan: "16:05", iqama: "16:15" },
     maghrib: { adhan: null, iqama: null }, // dynamic
     isha: { adhan: "19:25", iqama: "19:35" },
     jummah: { adhan: "13:10", iqama: "13:45" },
