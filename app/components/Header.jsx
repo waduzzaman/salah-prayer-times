@@ -78,24 +78,45 @@ export default function Header({ currentTime }) {
 
         <div className="w-24 h-1 bg-emerald-100 rounded-full mb-6"></div>
 
-        <p className="text-xl sm:text-2xl font-bold tracking-[0.2em] text-slate-800 uppercase mb-4">
+        <p className="text-xl bg-emerald-100 p-2 rounded-sm outline-1 sm:text-2xl font-bold tracking-[0.2em] text-slate-800 uppercase mb-4">
           30 Tuxedo Musallah
         </p>
 
-        {/* Elegant Glass-Style Clock Box */}
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-2xl blur opacity-25"></div>
-          <div className="relative bg-emerald-50 border border-emerald-200 px-10 py-5 rounded-2xl shadow-sm mb-4">
-            <p className="text-5xl sm:text-6xl md:text-7xl font-mono font-bold tracking-tighter text-emerald-950">
-              {currentTime.toLocaleTimeString([], {
-                hour: "numeric",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true,
-              }).toUpperCase()}
-            </p>
-          </div>
-        </div>
+ {/* Elegant Glass-Style Clock Box */}
+<div className="relative w-full max-w-2xl mx-auto group">
+  {/* Soft ambient glow */}
+  <div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-teal-200 rounded-[2rem] blur-xl opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+  
+  <div className="relative bg-white border border-emerald-100 px-6 py-8 sm:px-12 sm:py-10 rounded-[2rem] shadow-xl shadow-emerald-900/5 overflow-hidden">
+    
+    {/* Decorative Background Element */}
+    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
+
+    {/* Small Elegant Label */}
+    <div className="flex justify-center mb-4">
+      <span className="bg-emerald-100/50 text-emerald-800 text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] px-3 py-1 rounded-full border border-emerald-200/50">
+        Current Local Time
+      </span>
+    </div>
+
+    {/* The Time Display */}
+    <div className="flex justify-center items-baseline gap-1 sm:gap-2 text-emerald-950">
+      <p className="text-5xl sm:text-7xl md:text-8xl font-mono font-bold tracking-tighter tabular-nums">
+        {currentTime.toLocaleTimeString([], {
+          hour: "numeric",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: true,
+        }).split(' ')[0]} 
+      </p>
+      
+      {/* AM/PM styled smaller for elegance */}
+      <span className="text-xl sm:text-3xl font-bold text-emerald-700/60 uppercase">
+        {currentTime.toLocaleTimeString([], { hour12: true }).split(' ')[1]}
+      </span>
+    </div>
+  </div>
+</div>
 
         {/* Combined Date Display (English & Hijri) */}
         <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-emerald-800 font-bold text-lg sm:text-xl">
