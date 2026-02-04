@@ -1,97 +1,123 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Sunrise, Sunset, MapPin, CalendarDays } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import SunCalc from "suncalc";
 
 export default function Header({ currentTime }) {
   const [sunrise, setSunrise] = useState("");
   const [sunset, setSunset] = useState("");
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState("Loading location...");
+
+  // Calculate Hijri Date natively (Instant & Reliable)
+  const hijriDate = useMemo(() => {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+      const parts = formatter.formatToParts(currentTime);
+      const d = parts.find(p => p.type === 'day').value;
+      const m = parts.find(p => p.type === 'month').value;
+      const y = parts.find(p => p.type === 'year').value;
+      return `${d} ${m} ${y} AH`;
+    } catch (e) {
+      return "";
+    }
+  }, [currentTime]);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async ({ coords }) => {
-        const { latitude, longitude } = coords;
+    if (!navigator.geolocation) return;
 
-        const times = SunCalc.getTimes(new Date(), latitude, longitude);
-        setSunrise(
-          times.sunrise.toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })
-        );
-        setSunset(
-          times.sunset.toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })
-        );
+    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
+      const { latitude, longitude } = coords;
+      const times = SunCalc.getTimes(new Date(), latitude, longitude);
 
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
-          );
-          const data = await res.json();
-          setLocation(
-            data.address.city ||
-              data.address.town ||
-              data.address.village ||
-              data.address.state ||
-              ""
-          );
-        } catch (err) {
-          console.error(err);
-        }
-      });
-    }
+      setSunrise(times.sunrise.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
+      setSunset(times.sunset.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
+
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+        const data = await res.json();
+        setLocation(data.address.city || data.address.town || data.address.village || data.address.state || "Toronto");
+      } catch (err) {
+        console.error(err);
+      }
+    });
   }, []);
 
   return (
-    <header className="relative w-full mb-10">
-      {/* Top-right info for desktop */}
-      <div className="hidden md:flex absolute top-0 right-0 mt-4 mr-4 flex-col text-right text-amber-200 font-semibold space-y-1">
-        <p>{location}</p>
-        <p>Sunrise: {sunrise}</p>
-        <p>Sunset: {sunset}</p>
-      </div>
-
-      {/* Mobile / small screen: info above heading */}
-      <div className="flex flex-col items-center md:hidden mb-2 text-amber-200 font-sm space-y-1">
-        <p className="font-semibold">{location}</p>
-        <p>Sunrise: {sunrise}</p>
-        <p>Sunset: {sunset}</p>
-      </div>
-
-      {/* Center content */}
-      <div className="flex flex-col items-center">
-        <div className="text-center">
-          <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-white mb-2 leading-snug">
-            بِسْمِ ٱللّٰهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
-          </h1>
-         
+    <header className="w-full max-w-5xl mx-auto mb-12">
+      {/* Top Metadata Bar */}
+      <div className="flex justify-between items-center bg-emerald-50/50 border-b border-emerald-100 px-6 py-3 rounded-t-3xl text-emerald-900">
+        <div className="flex items-center gap-2 font-medium">
+          <MapPin className="w-4 h-4 text-emerald-600" />
+          <span className="text-sm tracking-wide">{location}</span>
         </div>
 
-        <p className="text-xl md:text-xl text-amber-200/90 mb-2">
+        <div className="flex gap-6 items-center">
+          <div className="flex items-center gap-2">
+            <Sunrise className="w-4 h-4 text-amber-500" />
+            <span className="text-sm font-semibold">{sunrise || "--:--"}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Sunset className="w-4 h-4 text-orange-500" />
+            <span className="text-sm font-semibold">{sunset || "--:--"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Brand & Time Section */}
+      <div className="bg-white border-x border-b border-emerald-100 rounded-b-3xl shadow-sm p-8 flex flex-col items-center text-center">
+        
+        {/* Arabic Calligraphy Style Heading */}
+        <h1 className="text-3xl sm:text-4xl md:text-6xl font-serif text-emerald-900 mb-6 drop-shadow-sm">
+          بِسْمِ ٱللّٰهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+        </h1>
+
+        <div className="w-24 h-1 bg-emerald-100 rounded-full mb-6"></div>
+
+        <p className="text-xl sm:text-2xl font-bold tracking-[0.2em] text-slate-800 uppercase mb-4">
           30 Tuxedo Musallah
         </p>
-        <p className="text-2xl md:text-3xl text-white font-mono mb-1">
-          {currentTime.toLocaleTimeString([], {
-            hour: "numeric",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-          })}
-        </p>
-        <p className="text-xl md:text-2xl text-gray-100 font-mono tracking-wider">
-          {currentTime.toLocaleDateString([], {
-            weekday: "short",
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          })}
-        </p>
+
+        {/* Elegant Glass-Style Clock Box */}
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-2xl blur opacity-25"></div>
+          <div className="relative bg-emerald-50 border border-emerald-200 px-10 py-5 rounded-2xl shadow-sm mb-4">
+            <p className="text-5xl sm:text-6xl md:text-7xl font-mono font-bold tracking-tighter text-emerald-950">
+              {currentTime.toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true,
+              }).toUpperCase()}
+            </p>
+          </div>
+        </div>
+
+        {/* Combined Date Display (English & Hijri) */}
+        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-emerald-800 font-bold text-lg sm:text-xl">
+          <div className="flex items-center gap-2">
+            <CalendarDays className="w-5 h-5" />
+            <span>
+              {currentTime.toLocaleDateString([], {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </span>
+          </div>
+          
+          {/* Elegant Dot Separator (Hidden on tiny screens) */}
+          <span className="hidden sm:inline text-emerald-300">•</span>
+          
+          <span className="text-emerald-700/80 font-medium">
+            {hijriDate}
+          </span>
+        </div>
       </div>
     </header>
   );
