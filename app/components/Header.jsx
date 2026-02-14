@@ -1,145 +1,168 @@
 "use client";
 
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { Sunrise, Sunset, MapPin, CalendarDays } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import SunCalc from "suncalc";
 
 export default function Header({ currentTime }) {
   const [sunrise, setSunrise] = useState("");
   const [sunset, setSunset] = useState("");
   const [location, setLocation] = useState("Loading location...");
+  const [showCalendar, setShowCalendar] = useState(false);
 
-  // Calculate Hijri Date natively (Instant & Reliable)
+  /* -----------------------------
+      ✅ Hijri Date
+  ------------------------------ */
   const hijriDate = useMemo(() => {
     try {
-      const formatter = new Intl.DateTimeFormat('en-u-ca-islamic-umalqura-nu-latn', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      });
+      const formatter = new Intl.DateTimeFormat(
+        "en-u-ca-islamic-umalqura-nu-latn",
+        {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }
+      );
+
       const parts = formatter.formatToParts(currentTime);
-      const d = parts.find(p => p.type === 'day').value;
-      const m = parts.find(p => p.type === 'month').value;
-      const y = parts.find(p => p.type === 'year').value;
-      return `${d} ${m} ${y} AH`;
+      const day = parts.find((p) => p.type === "day")?.value ?? "";
+      const month = parts.find((p) => p.type === "month")?.value ?? "";
+      const year = parts.find((p) => p.type === "year")?.value ?? "";
+
+      return `${day} ${month} ${year} AH`;
     } catch (e) {
       return "";
     }
   }, [currentTime]);
 
+  /* -----------------------------
+      ✅ Geolocation + SunCalc
+  ------------------------------ */
   useEffect(() => {
-    if (!navigator.geolocation) return;
+    if (typeof window === "undefined" || !("geolocation" in navigator)) {
+      setLocation("Location unavailable");
+      return;
+    }
 
-    navigator.geolocation.getCurrentPosition(async ({ coords }) => {
-      const { latitude, longitude } = coords;
-      const times = SunCalc.getTimes(new Date(), latitude, longitude);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const times = SunCalc.getTimes(new Date(), latitude, longitude);
 
-      setSunrise(times.sunrise.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
-      setSunset(times.sunset.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
+        setSunrise(times.sunrise.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
+        setSunset(times.sunset.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
 
-      try {
-        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
-        const data = await res.json();
-        setLocation(data.address.city || data.address.town || data.address.village || data.address.state || "Toronto");
-      } catch (err) {
-        console.error(err);
-      }
-    });
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
+          const data = await res.json();
+          setLocation(data.address?.city || data.address?.town || data.address?.village || data.address?.state || "Toronto");
+        } catch {
+          setLocation("Toronto");
+        }
+      },
+      () => setLocation("Toronto")
+    );
   }, []);
 
+  const closeModal = useCallback(() => setShowCalendar(false), []);
+
+  useEffect(() => {
+    if (!showCalendar) return;
+    const handleKeyDown = (e) => { if (e.key === "Escape") closeModal(); };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showCalendar, closeModal]);
+
+  useEffect(() => {
+    document.body.style.overflow = showCalendar ? "hidden" : "auto";
+  }, [showCalendar]);
+
   return (
-    <header className="w-full max-w-5xl mx-auto mb-12">
-      {/* Top Metadata Bar */}
-      <div className="flex justify-between items-center bg-emerald-50/50 border-b border-emerald-100 px-6 py-3 rounded-t-3xl text-emerald-900">
-        <div className="flex items-center gap-2 font-medium">
-          <MapPin className="w-4 h-4 text-emerald-600" />
-          <span className="text-sm tracking-wide">{location}</span>
+    <>
+      <header className="w-full px-4 sm:px-6 lg:px-0 max-w-5xl mx-auto mb-10">
+        {/* Top Info Bar */}
+        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-center bg-emerald-50 border border-emerald-100 px-4 py-3 rounded-t-2xl text-emerald-900 text-sm">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-emerald-600" />
+            <span>{location}</span>
+          </div>
+          <div className="flex gap-4">
+            <div className="flex items-center gap-1">
+              <Sunrise className="w-4 h-4 text-amber-500" />
+              <span>{sunrise || "--:--"}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Sunset className="w-4 h-4 text-orange-500" />
+              <span>{sunset || "--:--"}</span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex gap-6 items-center">
-          <div className="flex items-center gap-2">
-            <Sunrise className="w-4 h-4 text-amber-500" />
-            <span className="text-sm font-semibold">{sunrise || "--:--"}</span>
+        {/* Main Content */}
+        <div className="bg-white border-x border-b border-emerald-100 rounded-b-2xl shadow-sm p-6 sm:p-10 text-center">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-serif text-emerald-900 mb-6">
+            بِسْمِ ٱللّٰهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
+          </h1>
+
+          <p className="text-base sm:text-xl bg-emerald-100 px-3 py-2 rounded-md font-semibold tracking-wide text-slate-800 uppercase mb-6">
+            30 Tuxedo Musallah
+          </p>
+
+          <div className="text-4xl sm:text-6xl md:text-7xl font-mono font-bold text-emerald-950 mb-6">
+            {currentTime.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })}
           </div>
-          <div className="flex items-center gap-2">
-            <Sunset className="w-4 h-4 text-orange-500" />
-            <span className="text-sm font-semibold">{sunset || "--:--"}</span>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-emerald-800 font-semibold text-sm sm:text-lg">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>{currentTime.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</span>
+            </div>
+            <span className="hidden sm:inline text-emerald-300">•</span>
+            <span className="text-emerald-700/80">{hijriDate}</span>
+          </div>
+
+          {/* ✨ SHINING ROTATING BORDER BUTTON 
+          */}
+          <div className="relative mt-8 inline-block group">
+            <button
+              type="button"
+              onClick={() => setShowCalendar(true)}
+              className="relative p-[3px] overflow-hidden rounded-xl focus:outline-none transition-transform active:scale-95"
+            >
+              {/* The Rotating Background Layer */}
+              <span className="absolute inset-[-1000%] animate-border-rotate bg-[conic-gradient(from_90deg_at_50%_50%,#10b981_0%,#d1fae5_50%,#10b981_100%)]" />
+              
+              {/* The Button Label Layer */}
+              <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-8 py-3 text-sm sm:text-base font-bold text-white backdrop-blur-3xl hover:bg-emerald-700 transition-colors">
+                View & Download Ramadan 2026 Calendar
+              </span>
+            </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {/* Main Brand & Time Section */}
-      <div className="bg-white border-x border-b border-emerald-100 rounded-b-3xl shadow-sm p-8 flex flex-col items-center text-center">
-        
-        {/* Arabic Calligraphy Style Heading */}
-        <h1 className="text-3xl sm:text-4xl md:text-6xl font-serif text-emerald-900 mb-6 drop-shadow-sm">
-          بِسْمِ ٱللّٰهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
-        </h1>
-
-        <div className="w-24 h-1 bg-emerald-100 rounded-full mb-6"></div>
-
-        <p className="text-xl bg-emerald-100 p-2 rounded-sm outline-1 sm:text-2xl font-bold tracking-[0.2em] text-slate-800 uppercase mb-4">
-          30 Tuxedo Musallah
-        </p>
-
- {/* Elegant Glass-Style Clock Box */}
-<div className="relative w-full max-w-2xl mx-auto group">
-  {/* Soft ambient glow */}
-  <div className="absolute -inset-1 bg-gradient-to-r from-emerald-200 to-teal-200 rounded-[2rem] blur-xl opacity-20 group-hover:opacity-40 transition duration-1000"></div>
-  
-  <div className="relative bg-white border border-emerald-100 px-6 py-8 sm:px-12 sm:py-10 rounded-[2rem] shadow-xl shadow-emerald-900/5 overflow-hidden">
-    
-    {/* Decorative Background Element */}
-    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-emerald-50 rounded-full blur-3xl opacity-50"></div>
-
-    {/* Small Elegant Label */}
-    <div className="flex justify-center mb-4">
-      <span className="bg-emerald-100/50 text-emerald-800 text-[10px] sm:text-xs font-bold uppercase tracking-[0.3em] px-3 py-1 rounded-full border border-emerald-200/50">
-        Current Local Time
-      </span>
-    </div>
-
-    {/* The Time Display */}
-    <div className="flex justify-center items-baseline gap-1 sm:gap-2 text-emerald-950">
-      <p className="text-5xl sm:text-7xl md:text-8xl font-mono font-bold tracking-tighter tabular-nums">
-        {currentTime.toLocaleTimeString([], {
-          hour: "numeric",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: true,
-        }).split(' ')[0]} 
-      </p>
-      
-      {/* AM/PM styled smaller for elegance */}
-      <span className="text-xl sm:text-3xl font-bold text-emerald-700/60 uppercase">
-        {currentTime.toLocaleTimeString([], { hour12: true }).split(' ')[1]}
-      </span>
-    </div>
-  </div>
-</div>
-
-        {/* Combined Date Display (English & Hijri) */}
-        <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-emerald-800 font-bold text-lg sm:text-xl">
-          <div className="flex items-center gap-2">
-            <CalendarDays className="w-5 h-5" />
-            <span>
-              {currentTime.toLocaleDateString([], {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
-            </span>
+      {/* Modal */}
+      {showCalendar && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto"
+          onClick={closeModal}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="bg-white w-full max-w-4xl rounded-2xl p-4 sm:p-6 relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={closeModal} className="absolute top-3 right-4 text-gray-500 hover:text-black text-xl">✕</button>
+            <div className="relative w-full h-[60vh] sm:h-[70vh]">
+              <Image src="/ramadan-2026.png" alt="Ramadan 2026" fill className="object-contain rounded-xl" priority />
+            </div>
+            <div className="mt-6">
+              <a href="/ramadan-2026.png" download className="block w-full text-center px-6 py-3 bg-emerald-600 text-white rounded-xl shadow font-bold hover:bg-emerald-700">
+                Download Full Resolution
+              </a>
+            </div>
           </div>
-          
-          {/* Elegant Dot Separator (Hidden on tiny screens) */}
-          <span className="hidden sm:inline text-emerald-300">•</span>
-          
-          <span className="text-emerald-700/80 font-medium">
-            {hijriDate}
-          </span>
         </div>
-      </div>
-    </header>
+      )}
+    </>
   );
 }
