@@ -1,57 +1,65 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Header from "./components/Header";
 import Countdown from "./components/Countdown";
 import Footer from "./components/Footer";
-import {
-  Sunrise,
-  Sun,
-  Cloudy,
-  Sunset,
-  Moon,
-} from "lucide-react";
+import { Sunrise, Sun, Cloudy, Sunset, Moon } from "lucide-react";
 
-const SunTimes = dynamic(() => import("./components/SunTimes"), {
-  ssr: false,
-});
+const SunTimes = dynamic(() => import("./components/SunTimes"), { ssr: false });
 
 export default function Page() {
   /* -------------------- MOUNT GUARD -------------------- */
   const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  /* -------------------- GOOGLE SHEET DATA -------------------- */
+  const [prayerTimesData, setPrayerTimesData] = useState({});
 
-  /* -------------------- STATIC DATA -------------------- */
-  const prayerTimesData = {
-    fajr: { adhan: "06:00" },
-    dhuhr: { adhan: "12:55" },
-    asr: { adhan: "16:55" },
-    maghrib: { adhan: null },
-    isha: { adhan: "19:30" },
-    jummah: { adhan: "13:10" },
+  const convertTo24Hour = (timeStr) => {
+    const [time, modifier] = timeStr.split(" ");
+    let [hours, minutes] = time.split(":");
+    if (modifier === "PM" && hours !== "12") hours = String(parseInt(hours) + 12);
+    if (modifier === "AM" && hours === "12") hours = "00";
+    return `${hours.padStart(2, "0")}:${minutes}`;
   };
 
+  useEffect(() => {
+    if (!mounted) return;
+    async function fetchSheet() {
+      try {
+        const res = await fetch(
+          "https://docs.google.com/spreadsheets/d/e/2PACX-1vRB_o40MdOw7VvT51EilJH8OdnXhKXy5AXU8W-cuzyD3ENz3jS6tfbDxm_hrlDSOW9o3ZVmyo7QUnkj/pub?output=csv",
+          { cache: "no-store" }
+        );
+        const text = await res.text();
+        const rows = text.split("\n").slice(1);
+
+        const formatted = {};
+        rows.forEach((row) => {
+          const [prayer, time] = row.split(",");
+          if (prayer && time)
+            formatted[prayer.trim().toLowerCase()] = { adhan: convertTo24Hour(time.trim()) };
+        });
+        setPrayerTimesData(formatted);
+      } catch (err) {
+        console.error("Sheet fetch failed:", err);
+      }
+    }
+    fetchSheet();
+  }, [mounted]);
+
   /* -------------------- STATE -------------------- */
-  const [currentTime, setCurrentTime] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
   const [nextIqama, setNextIqama] = useState(null);
   const [countdown, setCountdown] = useState("--:--:--");
-  const [isJummahDay, setIsJummahDay] = useState(false);
   const [sunsetTime, setSunsetTime] = useState(null);
 
   /* -------------------- CLOCK -------------------- */
   useEffect(() => {
     if (!mounted) return;
-
-    setCurrentTime(new Date());
-
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, [mounted]);
 
@@ -63,124 +71,94 @@ export default function Page() {
     d.setHours(parseInt(h), parseInt(m), 0, 0);
     return d;
   };
-
-  const addMinutes = (date, mins) =>
-    new Date(date.getTime() + mins * 60000);
-
+  const addMinutes = (date, mins) => new Date(date.getTime() + mins * 60000);
   const formatTime = (time) => {
     if (!time) return "--:--";
     const d = typeof time === "string" ? parseTime(time) : time;
-
-    return d.toLocaleTimeString("en-CA", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
   };
 
   /* -------------------- SUNSET -------------------- */
   useEffect(() => {
-    if (!mounted) return;
-    if (!navigator.geolocation) return;
-
+    if (!mounted || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       import("suncalc").then((SunCalc) => {
-        const times = SunCalc.getTimes(
-          new Date(),
-          coords.latitude,
-          coords.longitude
-        );
+        const times = SunCalc.getTimes(new Date(), coords.latitude, coords.longitude);
         setSunsetTime(times.sunset);
       });
     });
   }, [mounted]);
 
+  /* -------------------- IQAMA OFFSETS -------------------- */
+  const iqamaOffsets = {
+    fajr: 5,
+    dhuhr: 5,
+    asr: 5,
+    maghrib: 12,
+    isha: 5,
+  };
+
   /* -------------------- NEXT IQAMA LOGIC -------------------- */
   useEffect(() => {
-    if (!currentTime) return;
+    if (!prayerTimesData.fajr) return;
 
-    const now = new Date();
-    const jummah = now.getDay() === 5;
-    setIsJummahDay(jummah);
-
-    const dailyPrayers = jummah
-      ? { ...prayerTimesData, dhuhr: prayerTimesData.jummah }
-      : prayerTimesData;
+    const dailyPrayers = prayerTimesData; // no Jummah
 
     const iqamaEvents = Object.entries(dailyPrayers)
-      .filter(([n]) => n !== "jummah")
       .map(([name, times]) => {
         let adhan;
 
         if (name === "maghrib" && sunsetTime) {
-          adhan = addMinutes(sunsetTime, 1);
+          adhan = addMinutes(sunsetTime, 1); // Maghrib dynamic
         } else {
-          adhan = parseTime(times.adhan);
+          adhan = parseTime(times?.adhan);
         }
 
         if (!adhan) return null;
 
-        const iqama = addMinutes(adhan, 3);
+        const iqama = addMinutes(adhan, iqamaOffsets[name] || 5);
         return { name, time: iqama };
       })
       .filter(Boolean)
       .sort((a, b) => a.time - b.time);
 
-    let next = iqamaEvents.find((p) => p.time > now);
-
-    if (!next) {
-      const tomorrow = addMinutes(parseTime("06:00"), 3);
+    let next = iqamaEvents.find((p) => p.time > new Date());
+    if (!next && prayerTimesData.fajr) {
+      const tomorrow = addMinutes(parseTime(prayerTimesData.fajr.adhan), iqamaOffsets.fajr);
       tomorrow.setDate(tomorrow.getDate() + 1);
       next = { name: "fajr", time: tomorrow };
     }
-
     setNextIqama(next);
 
-    const diff = next.time - now;
-
-    if (diff <= 0) {
-      setCountdown("00:00:00");
-      return;
-    }
+    if (!next) return;
+    const diff = next.time - new Date();
+    if (diff <= 0) return setCountdown("00:00:00");
 
     const h = Math.floor(diff / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
     const s = Math.floor((diff % 60000) / 1000);
-
-    setCountdown(
-      `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
-    );
-  }, [currentTime, sunsetTime]);
+    setCountdown(`${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
+  },  [currentTime, sunsetTime, prayerTimesData, iqamaOffsets]);
 
   /* -------------------- ICONS -------------------- */
   const prayerIcons = {
     fajr: <Sunrise className="w-10 h-10" />,
     dhuhr: <Sun className="w-10 h-10" />,
-    jummah: <Sun className="w-10 h-10" />,
     asr: <Cloudy className="w-10 h-10" />,
     maghrib: <Sunset className="w-10 h-10" />,
     isha: <Moon className="w-10 h-10" />,
   };
 
-  const displayPrayers = isJummahDay
-    ? ["fajr", "jummah", "asr", "maghrib", "isha"]
-    : ["fajr", "dhuhr", "asr", "maghrib", "isha"];
+  const displayPrayers = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 
   /* -------------------- PRAYER CARD -------------------- */
   const PrayerCard = ({ prayer }) => {
-    let adhan;
-    let iqama;
-    
-    // Magrib
+    const adhan =
+      prayer === "maghrib" && sunsetTime
+        ? addMinutes(sunsetTime, 1)
+        : parseTime(prayerTimesData[prayer]?.adhan);
 
-    if (prayer === "maghrib" && sunsetTime) {
-      adhan = addMinutes(sunsetTime, 1);
-      iqama = addMinutes(adhan, 12);
-    } else {
-      const key = prayer === "jummah" ? "jummah" : prayer;
-      adhan = parseTime(prayerTimesData[key]?.adhan);
-      iqama = adhan ? addMinutes(adhan, 5) : null;
-    }
+    const iqama = adhan ? addMinutes(adhan, iqamaOffsets[prayer] || 5) : null;
 
     return (
       <section className="bg-white border border-emerald-200 rounded-3xl p-6 sm:p-8 text-center shadow-md flex flex-col items-center">
@@ -221,17 +199,14 @@ export default function Page() {
   return (
     <main className="w-full max-w-7xl mx-auto flex flex-col items-center px-4 sm:px-6 md:px-8 py-8 space-y-8">
       <Header />
-
       <div className="w-full">
         <Countdown nextPrayer={nextIqama} countdown={countdown} />
       </div>
-
       <section className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
         {displayPrayers.map((p) => (
           <PrayerCard key={p} prayer={p} />
         ))}
       </section>
-
       <Footer />
     </main>
   );
