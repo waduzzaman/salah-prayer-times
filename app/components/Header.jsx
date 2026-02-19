@@ -5,16 +5,98 @@ import { Sunrise, Sunset, MapPin, CalendarDays } from "lucide-react";
 import Image from "next/image";
 import SunCalc from "suncalc";
 
-export default function Header({ currentTime }) {
-  const [sunrise, setSunrise] = useState("");
-  const [sunset, setSunset] = useState("");
+export default function Header() {
+  /* -----------------------------
+      ✅ Hydration Safe Mount
+  ------------------------------ */
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  /* -----------------------------
+      ✅ Live Clock (Client Only)
+  ------------------------------ */
+  const [currentTime, setCurrentTime] = useState(null);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    setCurrentTime(new Date());
+
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [mounted]);
+
+  /* -----------------------------
+      ✅ Sunrise / Sunset
+  ------------------------------ */
+  const [sunrise, setSunrise] = useState("--:--");
+  const [sunset, setSunset] = useState("--:--");
   const [location, setLocation] = useState("Loading location...");
   const [showCalendar, setShowCalendar] = useState(false);
 
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (!("geolocation" in navigator)) {
+      setLocation("Location unavailable");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+
+        const times = SunCalc.getTimes(new Date(), latitude, longitude);
+
+        setSunrise(
+          times.sunrise.toLocaleTimeString("en-CA", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })
+        );
+
+        setSunset(
+          times.sunset.toLocaleTimeString("en-CA", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })
+        );
+
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+
+          setLocation(
+            data.address?.city ||
+              data.address?.town ||
+              data.address?.village ||
+              data.address?.state ||
+              "Toronto"
+          );
+        } catch {
+          setLocation("Toronto");
+        }
+      },
+      () => setLocation("Toronto")
+    );
+  }, [mounted]);
+
   /* -----------------------------
-      ✅ Hijri Date
+      ✅ Hijri Date (Client Only)
   ------------------------------ */
   const hijriDate = useMemo(() => {
+    if (!currentTime) return "";
+
     try {
       const formatter = new Intl.DateTimeFormat(
         "en-u-ca-islamic-umalqura-nu-latn",
@@ -31,45 +113,23 @@ export default function Header({ currentTime }) {
       const year = parts.find((p) => p.type === "year")?.value ?? "";
 
       return `${day} ${month} ${year} AH`;
-    } catch (e) {
+    } catch {
       return "";
     }
   }, [currentTime]);
 
   /* -----------------------------
-      ✅ Geolocation + SunCalc
+      ✅ Modal Controls
   ------------------------------ */
-  useEffect(() => {
-    if (typeof window === "undefined" || !("geolocation" in navigator)) {
-      setLocation("Location unavailable");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        const times = SunCalc.getTimes(new Date(), latitude, longitude);
-
-        setSunrise(times.sunrise.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
-        setSunset(times.sunset.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true }));
-
-        try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
-          const data = await res.json();
-          setLocation(data.address?.city || data.address?.town || data.address?.village || data.address?.state || "Toronto");
-        } catch {
-          setLocation("Toronto");
-        }
-      },
-      () => setLocation("Toronto")
-    );
-  }, []);
-
   const closeModal = useCallback(() => setShowCalendar(false), []);
 
   useEffect(() => {
     if (!showCalendar) return;
-    const handleKeyDown = (e) => { if (e.key === "Escape") closeModal(); };
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") closeModal();
+    };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showCalendar, closeModal]);
@@ -78,6 +138,9 @@ export default function Header({ currentTime }) {
     document.body.style.overflow = showCalendar ? "hidden" : "auto";
   }, [showCalendar]);
 
+  /* -----------------------------
+      ✅ Render
+  ------------------------------ */
   return (
     <>
       <header className="w-full px-4 sm:px-6 lg:px-0 max-w-5xl mx-auto mb-10">
@@ -87,14 +150,16 @@ export default function Header({ currentTime }) {
             <MapPin className="w-4 h-4 text-emerald-600" />
             <span>{location}</span>
           </div>
+
           <div className="flex gap-4">
             <div className="flex items-center gap-1">
               <Sunrise className="w-4 h-4 text-amber-500" />
-              <span>{sunrise || "--:--"}</span>
+              <span>{sunrise}</span>
             </div>
+
             <div className="flex items-center gap-1">
               <Sunset className="w-4 h-4 text-orange-500" />
-              <span>{sunset || "--:--"}</span>
+              <span>{sunset}</span>
             </div>
           </div>
         </div>
@@ -109,32 +174,49 @@ export default function Header({ currentTime }) {
             30 Tuxedo Musallah
           </p>
 
+          {/* Live Clock */}
           <div className="text-4xl sm:text-6xl md:text-7xl font-mono font-bold text-emerald-950 mb-6">
-            {currentTime.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit", hour12: true })}
+            {currentTime
+              ? currentTime.toLocaleTimeString("en-CA", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                  second: "2-digit",
+                  hour12: true,
+                })
+              : "--:--:--"}
           </div>
 
+          {/* Gregorian + Hijri */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-emerald-800 font-semibold text-sm sm:text-lg">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>{currentTime.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</span>
+              <span>
+                {currentTime
+                  ? currentTime.toLocaleDateString("en-CA", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : ""}
+              </span>
             </div>
+
             <span className="hidden sm:inline text-emerald-300">•</span>
+
             <span className="text-emerald-700/80">{hijriDate}</span>
           </div>
 
-          {/* ✨ SHINING ROTATING BORDER BUTTON 
-          */}
-          <div className="relative mt-8 inline-block group">
+          {/* Calendar Button */}
+          <div className="relative mt-8 inline-block">
             <button
               type="button"
               onClick={() => setShowCalendar(true)}
               className="relative p-[3px] overflow-hidden rounded-xl focus:outline-none transition-transform active:scale-95"
             >
-              {/* The Rotating Background Layer */}
               <span className="absolute inset-[-1000%] animate-border-rotate bg-[conic-gradient(from_90deg_at_50%_50%,#10b981_0%,#d1fae5_50%,#10b981_100%)]" />
-              
-              {/* The Button Label Layer */}
-              <span className="inline-flex h-full w-full cursor-pointer items-center justify-center rounded-xl bg-emerald-600 px-8 py-3 text-sm sm:text-base font-bold text-white backdrop-blur-3xl hover:bg-emerald-700 transition-colors">
+
+              <span className="relative inline-flex items-center justify-center rounded-xl bg-emerald-600 px-8 py-3 text-sm sm:text-base font-bold text-white hover:bg-emerald-700 transition-colors">
                 View & Download Ramadan 2026 Calendar
               </span>
             </button>
@@ -147,16 +229,34 @@ export default function Header({ currentTime }) {
         <div
           className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto"
           onClick={closeModal}
-          role="dialog"
-          aria-modal="true"
         >
-          <div className="bg-white w-full max-w-4xl rounded-2xl p-4 sm:p-6 relative" onClick={(e) => e.stopPropagation()}>
-            <button onClick={closeModal} className="absolute top-3 right-4 text-gray-500 hover:text-black text-xl">✕</button>
+          <div
+            className="bg-white w-full max-w-4xl rounded-2xl p-4 sm:p-6 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={closeModal}
+              className="absolute top-3 right-4 text-gray-500 hover:text-black text-xl"
+            >
+              ✕
+            </button>
+
             <div className="relative w-full h-[60vh] sm:h-[70vh]">
-              <Image src="/ramadan-2026.png" alt="Ramadan 2026" fill className="object-contain rounded-xl" priority />
+              <Image
+                src="/ramadan-2026.png"
+                alt="Ramadan 2026"
+                fill
+                className="object-contain rounded-xl"
+                priority
+              />
             </div>
+
             <div className="mt-6">
-              <a href="/ramadan-2026.png" download className="block w-full text-center px-6 py-3 bg-emerald-600 text-white rounded-xl shadow font-bold hover:bg-emerald-700">
+              <a
+                href="/ramadan-2026.png"
+                download
+                className="block w-full text-center px-6 py-3 bg-emerald-600 text-white rounded-xl shadow font-bold hover:bg-emerald-700"
+              >
                 Download Full Resolution
               </a>
             </div>

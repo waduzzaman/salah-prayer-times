@@ -49,22 +49,14 @@ export default function Countdown({ nextPrayer, countdown }) {
             font-mono
             text-6xl sm:text-7xl md:text-8xl lg:text-9xl
             font-bold
-            text-emerald-900
+            text-red-500
             tracking-tight
           "
         >
           {countdown}
         </p>
 
-        <p
-          className="
-            mt-4
-            text-base sm:text-lg
-            text-emerald-700
-          "
-        >
-          Hours : Minutes : Seconds
-        </p>
+      
       </div>
     </section>
   );
