@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Sunrise, Sunset, MapPin, CalendarDays } from "lucide-react";
 import Image from "next/image";
 import SunCalc from "suncalc";
@@ -66,64 +66,6 @@ export default function Header() {
   }, [mounted]);
 
   /* -----------------------------
-      ✅ Hijri Date (Bulletproof Fix)
-  ------------------------------ */
-  const hijriDate = useMemo(() => {
-    if (!currentTime) return "";
-
-    // Method 1: Try Browser Intl API
-    try {
-      const locale = "en-u-ca-islamic-umalqura-nu-latn";
-      const formatter = new Intl.DateTimeFormat(locale, {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
-      const parts = formatter.formatToParts(currentTime);
-      const year = parseInt(parts.find(p => p.type === 'year')?.value || "0");
-      
-      // If the browser actually returned a Hijri year (around 1447)
-      if (year > 1400 && year < 1500) {
-        const d = parts.find(p => p.type === "day")?.value;
-        const m = parts.find(p => p.type === "month")?.value;
-        return `${d} ${m} ${year} AH`;
-      }
-    } catch (e) {
-      // Fall through to Method 2
-    }
-
-    // Method 2: Mathematical Fallback (Kuwaiti Algorithm)
-    // Used when mobile browsers fail to provide Islamic calendar data
-    const day = currentTime.getDate();
-    const month = currentTime.getMonth();
-    const year = currentTime.getFullYear();
-    
-    let m = month + 1;
-    let y = year;
-    if (m < 3) {
-        y -= 1;
-        m += 12;
-    }
-
-    let jd = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + 2 - Math.floor(y / 100) + Math.floor(Math.floor(y / 100) / 4) - 1524.5;
-    jd = Math.floor(jd) + 0.5;
-    const iEpoch = 1948439.5;
-    const iCycles = Math.floor((jd - iEpoch) / 10631);
-    const iCycleDay = Math.floor(jd - iEpoch) % 10631;
-    const iYear = Math.floor((iCycleDay) / 354.366);
-    const iYearDay = Math.floor(iCycleDay - (iYear * 354.366) + 0.5);
-    
-    const hYear = (iCycles * 30) + iYear + 1;
-    const hMonthNames = ["Muharram", "Safar", "Rabi' al-Awwal", "Rabi' al-Thani", "Jumada al-Ula", "Jumada al-Akhirah", "Rajab", "Sha'ban", "Ramadan", "Shawwal", "Dhu al-Qi'dah", "Dhu al-Hijjah"];
-    
-    let hMonth = Math.floor((iYearDay - 1) / 29.5);
-    if (hMonth > 11) hMonth = 11;
-    const hDay = Math.floor(iYearDay - (hMonth * 29.5) + 0.5);
-
-    return `${hDay} ${hMonthNames[hMonth]} ${hYear} AH`;
-  }, [currentTime]);
-
-  /* -----------------------------
       ✅ Modal Controls
   ------------------------------ */
   const closeModal = useCallback(() => setShowCalendar(false), []);
@@ -183,23 +125,15 @@ export default function Header() {
           </div>
 
           {/* Date Row */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 text-emerald-800 font-bold text-sm sm:text-lg border-t border-emerald-50 pt-8">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-              <span>
-                {currentTime ? currentTime.toLocaleDateString("en-CA", {
-                      weekday: "long",
-                      month: "long",
-                      day: "numeric",
-                      year: "numeric",
-                    }) : ""}
-              </span>
-            </div>
-
-            <span className="hidden sm:inline text-emerald-200">|</span>
-
-            <span className="text-emerald-900 bg-emerald-50 px-3 py-1.5 rounded-xl sm:bg-transparent sm:p-0">
-              {hijriDate}
+          <div className="flex items-center justify-center gap-3 text-emerald-800 font-bold text-base sm:text-xl border-t border-emerald-50 pt-8">
+            <CalendarDays className="w-5 h-5 text-emerald-600" />
+            <span>
+              {currentTime ? currentTime.toLocaleDateString("en-CA", {
+                    weekday: "long",
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  }) : ""}
             </span>
           </div>
 
