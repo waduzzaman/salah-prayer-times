@@ -5,19 +5,28 @@ import dynamic from "next/dynamic";
 import Header from "./components/Header";
 import Countdown from "./components/Countdown";
 import Footer from "./components/Footer";
+import WelcomeSplash from "./components/WelcomeSplash";
 import { Sunrise, Sun, Cloudy, Sunset, Moon } from "lucide-react";
 
 const SunTimes = dynamic(() => import("./components/SunTimes"), { ssr: false });
 
 export default function Page() {
-  /* -------------------- MOUNT GUARD -------------------- */
+  /* -------------------- MOUNT & LOADING GUARD -------------------- */
   const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => setMounted(true), []);
 
-  /* -------------------- GOOGLE SHEET DATA -------------------- */
+  /* -------------------- STATE -------------------- */
   const [prayerTimesData, setPrayerTimesData] = useState({});
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [nextIqama, setNextIqama] = useState(null);
+  const [countdown, setCountdown] = useState("--:--:--");
+  const [sunsetTime, setSunsetTime] = useState(null);
 
+  /* -------------------- HELPERS -------------------- */
   const convertTo24Hour = (timeStr) => {
+    if (!timeStr) return "00:00";
     const [time, modifier] = timeStr.split(" ");
     let [hours, minutes] = time.split(":");
     if (modifier === "PM" && hours !== "12") hours = String(parseInt(hours) + 12);
@@ -25,6 +34,23 @@ export default function Page() {
     return `${hours.padStart(2, "0")}:${minutes}`;
   };
 
+  const parseTime = (timeStr) => {
+    if (!timeStr) return null;
+    const [h, m] = timeStr.split(":");
+    const d = new Date();
+    d.setHours(parseInt(h), parseInt(m), 0, 0);
+    return d;
+  };
+
+  const addMinutes = (date, mins) => new Date(date.getTime() + mins * 60000);
+
+  const formatTime = (time) => {
+    if (!time) return "--:--";
+    const d = typeof time === "string" ? parseTime(time) : time;
+    return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
+  };
+
+  /* -------------------- GOOGLE SHEET DATA -------------------- */
   useEffect(() => {
     if (!mounted) return;
     async function fetchSheet() {
@@ -45,16 +71,13 @@ export default function Page() {
         setPrayerTimesData(formatted);
       } catch (err) {
         console.error("Sheet fetch failed:", err);
+      } finally {
+        // Delay to allow the musalli to experience the Bismillah welcome
+        setTimeout(() => setLoading(false), 2000);
       }
     }
     fetchSheet();
   }, [mounted]);
-
-  /* -------------------- STATE -------------------- */
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [nextIqama, setNextIqama] = useState(null);
-  const [countdown, setCountdown] = useState("--:--:--");
-  const [sunsetTime, setSunsetTime] = useState(null);
 
   /* -------------------- CLOCK -------------------- */
   useEffect(() => {
@@ -62,21 +85,6 @@ export default function Page() {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, [mounted]);
-
-  /* -------------------- HELPERS -------------------- */
-  const parseTime = (timeStr) => {
-    if (!timeStr) return null;
-    const [h, m] = timeStr.split(":");
-    const d = new Date();
-    d.setHours(parseInt(h), parseInt(m), 0, 0);
-    return d;
-  };
-  const addMinutes = (date, mins) => new Date(date.getTime() + mins * 60000);
-  const formatTime = (time) => {
-    if (!time) return "--:--";
-    const d = typeof time === "string" ? parseTime(time) : time;
-    return d.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true });
-  };
 
   /* -------------------- SUNSET -------------------- */
   useEffect(() => {
@@ -102,20 +110,17 @@ export default function Page() {
   useEffect(() => {
     if (!prayerTimesData.fajr) return;
 
-    const dailyPrayers = prayerTimesData; // no Jummah
+    const dailyPrayers = prayerTimesData; 
 
     const iqamaEvents = Object.entries(dailyPrayers)
       .map(([name, times]) => {
         let adhan;
-
         if (name === "maghrib" && sunsetTime) {
-          adhan = addMinutes(sunsetTime, 1); // Maghrib dynamic
+          adhan = addMinutes(sunsetTime, 1); 
         } else {
           adhan = parseTime(times?.adhan);
         }
-
         if (!adhan) return null;
-
         const iqama = addMinutes(adhan, iqamaOffsets[name] || 5);
         return { name, time: iqama };
       })
@@ -124,7 +129,8 @@ export default function Page() {
 
     let next = iqamaEvents.find((p) => p.time > new Date());
     if (!next && prayerTimesData.fajr) {
-      const tomorrow = addMinutes(parseTime(prayerTimesData.fajr.adhan), iqamaOffsets.fajr);
+      const tomorrowAdhan = parseTime(prayerTimesData.fajr.adhan);
+      const tomorrow = addMinutes(tomorrowAdhan, iqamaOffsets.fajr);
       tomorrow.setDate(tomorrow.getDate() + 1);
       next = { name: "fajr", time: tomorrow };
     }
@@ -138,9 +144,9 @@ export default function Page() {
     const m = Math.floor((diff % 3600000) / 60000);
     const s = Math.floor((diff % 60000) / 1000);
     setCountdown(`${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
-  },  [currentTime, sunsetTime, prayerTimesData, iqamaOffsets]);
+  }, [currentTime, sunsetTime, prayerTimesData]);
 
-  /* -------------------- ICONS -------------------- */
+  /* -------------------- UI HELPERS -------------------- */
   const prayerIcons = {
     fajr: <Sunrise className="w-10 h-10" />,
     dhuhr: <Sun className="w-10 h-10" />,
@@ -151,7 +157,6 @@ export default function Page() {
 
   const displayPrayers = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 
-  /* -------------------- PRAYER CARD -------------------- */
   const PrayerCard = ({ prayer }) => {
     const adhan =
       prayer === "maghrib" && sunsetTime
@@ -165,27 +170,19 @@ export default function Page() {
         <div className="mb-4 text-emerald-600 p-3 rounded-2xl bg-emerald-50 border border-emerald-100">
           {prayerIcons[prayer]}
         </div>
-
         <p className="text-2xl sm:text-3xl font-semibold uppercase text-gray-800 mb-6">
           {prayer}
         </p>
-
         <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
           <div className="flex flex-col items-center">
-            <span className="text-xs uppercase tracking-widest text-emerald-700 font-bold mb-1">
-              Adhan
-            </span>
+            <span className="text-xs uppercase tracking-widest text-emerald-700 font-bold mb-1">Adhan</span>
             <span className="font-mono text-3xl font-bold text-emerald-900">
               {mounted ? formatTime(adhan) : "--:--"}
             </span>
           </div>
-
           <div className="h-px bg-emerald-200 w-1/2 mx-auto"></div>
-
           <div className="flex flex-col items-center">
-            <span className="text-xs uppercase tracking-widest text-emerald-700 font-bold mb-1">
-              Iqama
-            </span>
+            <span className="text-xs uppercase tracking-widest text-emerald-700 font-bold mb-1">Iqama</span>
             <span className="font-mono text-4xl sm:text-5xl font-bold text-emerald-900 tracking-tight">
               {mounted ? formatTime(iqama) : "--:--"}
             </span>
@@ -195,19 +192,22 @@ export default function Page() {
     );
   };
 
-  /* -------------------- RENDER -------------------- */
   return (
-    <main className="w-full max-w-7xl mx-auto flex flex-col items-center px-4 sm:px-6 md:px-8 py-8 space-y-8">
-      <Header />
-      <div className="w-full">
-        <Countdown nextPrayer={nextIqama} countdown={countdown} />
-      </div>
-      <section className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-        {displayPrayers.map((p) => (
-          <PrayerCard key={p} prayer={p} />
-        ))}
-      </section>
-      <Footer />
-    </main>
+    <>
+      <WelcomeSplash isLoading={loading} />
+      
+      <main className={`w-full max-w-7xl mx-auto flex flex-col items-center px-4 sm:px-6 md:px-8 py-8 space-y-8 transition-opacity duration-1000 ${loading ? 'opacity-0' : 'opacity-100'}`}>
+        <Header />
+        <div className="w-full">
+          <Countdown nextPrayer={nextIqama} countdown={countdown} />
+        </div>
+        <section className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          {displayPrayers.map((p) => (
+            <PrayerCard key={p} prayer={p} />
+          ))}
+        </section>
+        <Footer />
+      </main>
+    </>
   );
 }

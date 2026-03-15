@@ -16,24 +16,21 @@ export default function Header() {
   }, []);
 
   /* -----------------------------
-      ✅ Live Clock (Client Only)
+      ✅ Live Clock
   ------------------------------ */
   const [currentTime, setCurrentTime] = useState(null);
 
   useEffect(() => {
     if (!mounted) return;
-
     setCurrentTime(new Date());
-
     const interval = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
-
     return () => clearInterval(interval);
   }, [mounted]);
 
   /* -----------------------------
-      ✅ Sunrise / Sunset
+      ✅ Sunrise / Sunset & Location
   ------------------------------ */
   const [sunrise, setSunrise] = useState("--:--");
   const [sunset, setSunset] = useState("--:--");
@@ -44,45 +41,22 @@ export default function Header() {
     if (!mounted) return;
 
     if (!("geolocation" in navigator)) {
-      setLocation("Location unavailable");
+      setLocation("Toronto");
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-
         const times = SunCalc.getTimes(new Date(), latitude, longitude);
 
-        setSunrise(
-          times.sunrise.toLocaleTimeString("en-CA", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })
-        );
-
-        setSunset(
-          times.sunset.toLocaleTimeString("en-CA", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })
-        );
+        setSunrise(times.sunrise.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true }));
+        setSunset(times.sunset.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", hour12: true }));
 
         try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
-          );
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`);
           const data = await res.json();
-
-          setLocation(
-            data.address?.city ||
-              data.address?.town ||
-              data.address?.village ||
-              data.address?.state ||
-              "Toronto"
-          );
+          setLocation(data.address?.city || data.address?.town || data.address?.suburb || "Toronto");
         } catch {
           setLocation("Toronto");
         }
@@ -92,20 +66,43 @@ export default function Header() {
   }, [mounted]);
 
   /* -----------------------------
-      ✅ Hijri Date (Client Only)
+      ✅ Hijri Date (Reliable Mobile Fix)
   ------------------------------ */
   const hijriDate = useMemo(() => {
     if (!currentTime) return "";
 
     try {
-      const formatter = new Intl.DateTimeFormat(
-        "en-u-ca-islamic-umalqura-nu-latn",
-        {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        }
-      );
+      // List of locales to try. Mobile browsers vary in support for 'umalqura'.
+      // 'ar-SA-u-ca-islamic' is the most widely supported fallback for Hijri.
+      const locales = [
+        "en-u-ca-islamic-umalqura-nu-latn", 
+        "en-u-ca-islamic-nu-latn", 
+        "ar-SA-u-ca-islamic"
+      ];
+      
+      let formatter;
+      
+      for (const loc of locales) {
+        try {
+          const testFormatter = new Intl.DateTimeFormat(loc, {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          });
+          
+          const parts = testFormatter.formatToParts(currentTime);
+          const yearVal = parseInt(parts.find(p => p.type === 'year')?.value || "0");
+          
+          // Validation: If it returns 2026, it failed and fell back to Gregorian. 
+          // Hijri year should be around 1447 right now.
+          if (yearVal > 1400 && yearVal < 1500) {
+            formatter = testFormatter;
+            break;
+          }
+        } catch (e) { continue; }
+      }
+
+      if (!formatter) return "";
 
       const parts = formatter.formatToParts(currentTime);
       const day = parts.find((p) => p.type === "day")?.value ?? "";
@@ -125,11 +122,7 @@ export default function Header() {
 
   useEffect(() => {
     if (!showCalendar) return;
-
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") closeModal();
-    };
-
+    const handleKeyDown = (e) => { if (e.key === "Escape") closeModal(); };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showCalendar, closeModal]);
@@ -138,14 +131,11 @@ export default function Header() {
     document.body.style.overflow = showCalendar ? "hidden" : "auto";
   }, [showCalendar]);
 
-  /* -----------------------------
-      ✅ Render
-  ------------------------------ */
   return (
     <>
       <header className="w-full px-4 sm:px-6 lg:px-0 max-w-5xl mx-auto mb-10">
         {/* Top Info Bar */}
-        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-center bg-emerald-50 border border-emerald-100 px-4 py-3 rounded-t-2xl text-emerald-900 text-sm">
+        <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-center bg-emerald-50 border border-emerald-100 px-4 py-3 rounded-t-2xl text-emerald-900 text-sm font-medium">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-emerald-600" />
             <span>{location}</span>
@@ -156,7 +146,6 @@ export default function Header() {
               <Sunrise className="w-4 h-4 text-amber-500" />
               <span>{sunrise}</span>
             </div>
-
             <div className="flex items-center gap-1">
               <Sunset className="w-4 h-4 text-orange-500" />
               <span>{sunset}</span>
@@ -166,16 +155,16 @@ export default function Header() {
 
         {/* Main Content */}
         <div className="bg-white border-x border-b border-emerald-100 rounded-b-2xl shadow-sm p-6 sm:p-10 text-center">
-          <h1 className="text-2xl sm:text-4xl md:text-5xl font-serif text-emerald-900 mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-emerald-900 mb-6 leading-relaxed">
             بِسْمِ ٱللّٰهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
           </h1>
 
-          <p className="text-base sm:text-xl bg-emerald-100 px-3 py-2 rounded-md font-semibold tracking-wide text-slate-800 uppercase mb-6">
+          <div className="inline-block bg-emerald-100 px-6 py-2 rounded-full font-bold tracking-widest text-emerald-800 uppercase mb-8 text-sm sm:text-base border border-emerald-200">
             30 Tuxedo Musallah
-          </p>
+          </div>
 
           {/* Live Clock */}
-          <div className="text-4xl sm:text-6xl md:text-7xl font-mono font-bold text-emerald-950 mb-6">
+          <div className="text-5xl sm:text-6xl md:text-8xl font-mono font-bold text-emerald-950 mb-8 tracking-tighter">
             {currentTime
               ? currentTime.toLocaleTimeString("en-CA", {
                   hour: "numeric",
@@ -183,83 +172,80 @@ export default function Header() {
                   second: "2-digit",
                   hour12: true,
                 })
-              : "--:--:--"}
+              : "00:00:00"}
           </div>
 
-          {/* Gregorian + Hijri */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-emerald-800 font-semibold text-sm sm:text-lg">
+          {/* Dates Section - Stacked on Mobile, Row on Desktop */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-emerald-800 font-bold text-sm sm:text-lg border-t border-emerald-50 pt-6">
             <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5" />
+              <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
               <span>
-                {currentTime
-                  ? currentTime.toLocaleDateString("en-CA", {
+                {currentTime ? currentTime.toLocaleDateString("en-CA", {
                       weekday: "long",
                       month: "long",
                       day: "numeric",
                       year: "numeric",
-                    })
-                  : ""}
+                    }) : ""}
               </span>
             </div>
 
-            <span className="hidden sm:inline text-emerald-300">•</span>
+            <span className="hidden sm:inline text-emerald-200">|</span>
 
-            <span className="text-emerald-700/80">{hijriDate}</span>
+            <span className="text-emerald-700 bg-emerald-50 sm:bg-transparent px-3 py-1 rounded-lg sm:p-0">
+              {hijriDate}
+            </span>
           </div>
 
-          {/* Calendar Button */}
-          <div className="relative mt-8 inline-block">
+          {/* Calendar CTA */}
+          <div className="mt-10">
             <button
               type="button"
               onClick={() => setShowCalendar(true)}
-              className="relative p-[3px] overflow-hidden rounded-xl focus:outline-none transition-transform active:scale-95"
+              className="group relative inline-flex items-center justify-center rounded-xl bg-emerald-600 px-8 py-4 text-sm sm:text-base font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg active:scale-95 overflow-hidden"
             >
-              <span className="absolute inset-[-1000%] animate-border-rotate bg-[conic-gradient(from_90deg_at_50%_50%,#10b981_0%,#d1fae5_50%,#10b981_100%)]" />
-
-              <span className="relative inline-flex items-center justify-center rounded-xl bg-emerald-600 px-8 py-3 text-sm sm:text-base font-bold text-white hover:bg-emerald-700 transition-colors">
-                View & Download Ramadan 2026 Calendar
+              <span className="relative z-10 flex items-center gap-2">
+                View Ramadan 2026 Calendar
               </span>
+              <div className="absolute inset-0 -z-0 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Modal */}
+      {/* Modal with Backdrop Blur */}
       {showCalendar && (
         <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={closeModal}
         >
           <div
-            className="bg-white w-full max-w-4xl rounded-2xl p-4 sm:p-6 relative"
+            className="bg-white w-full max-w-4xl rounded-3xl p-4 sm:p-8 relative shadow-2xl animate-in zoom-in duration-300"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={closeModal}
-              className="absolute top-3 right-4 text-gray-500 hover:text-black text-xl"
+              className="absolute top-4 right-5 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
             >
               ✕
             </button>
 
-            <div className="relative w-full h-[60vh] sm:h-[70vh]">
+            <div className="relative w-full h-[60vh] sm:h-[70vh] mb-6">
               <Image
                 src="/ramadan-2026.png"
-                alt="Ramadan 2026"
+                alt="30 Tuxedo Musallah Ramadan Calendar"
                 fill
-                className="object-contain rounded-xl"
+                className="object-contain"
                 priority
               />
             </div>
 
-            <div className="mt-6">
-              <a
-                href="/ramadan-2026.png"
-                download
-                className="block w-full text-center px-6 py-3 bg-emerald-600 text-white rounded-xl shadow font-bold hover:bg-emerald-700"
-              >
-                Download Full Resolution
-              </a>
-            </div>
+            <a
+              href="/ramadan-2026.png"
+              download
+              className="flex items-center justify-center w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-md hover:shadow-xl"
+            >
+              Download Calendar (Full Resolution)
+            </a>
           </div>
         </div>
       )}
