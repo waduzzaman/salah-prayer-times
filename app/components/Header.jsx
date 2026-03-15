@@ -66,53 +66,61 @@ export default function Header() {
   }, [mounted]);
 
   /* -----------------------------
-      ✅ Hijri Date (Reliable Mobile Fix)
+      ✅ Hijri Date (Bulletproof Fix)
   ------------------------------ */
   const hijriDate = useMemo(() => {
     if (!currentTime) return "";
 
+    // Method 1: Try Browser Intl API
     try {
-      // List of locales to try. Mobile browsers vary in support for 'umalqura'.
-      // 'ar-SA-u-ca-islamic' is the most widely supported fallback for Hijri.
-      const locales = [
-        "en-u-ca-islamic-umalqura-nu-latn", 
-        "en-u-ca-islamic-nu-latn", 
-        "ar-SA-u-ca-islamic"
-      ];
-      
-      let formatter;
-      
-      for (const loc of locales) {
-        try {
-          const testFormatter = new Intl.DateTimeFormat(loc, {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          });
-          
-          const parts = testFormatter.formatToParts(currentTime);
-          const yearVal = parseInt(parts.find(p => p.type === 'year')?.value || "0");
-          
-          // Validation: If it returns 2026, it failed and fell back to Gregorian. 
-          // Hijri year should be around 1447 right now.
-          if (yearVal > 1400 && yearVal < 1500) {
-            formatter = testFormatter;
-            break;
-          }
-        } catch (e) { continue; }
-      }
-
-      if (!formatter) return "";
-
+      const locale = "en-u-ca-islamic-umalqura-nu-latn";
+      const formatter = new Intl.DateTimeFormat(locale, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
       const parts = formatter.formatToParts(currentTime);
-      const day = parts.find((p) => p.type === "day")?.value ?? "";
-      const month = parts.find((p) => p.type === "month")?.value ?? "";
-      const year = parts.find((p) => p.type === "year")?.value ?? "";
-
-      return `${day} ${month} ${year} AH`;
-    } catch {
-      return "";
+      const year = parseInt(parts.find(p => p.type === 'year')?.value || "0");
+      
+      // If the browser actually returned a Hijri year (around 1447)
+      if (year > 1400 && year < 1500) {
+        const d = parts.find(p => p.type === "day")?.value;
+        const m = parts.find(p => p.type === "month")?.value;
+        return `${d} ${m} ${year} AH`;
+      }
+    } catch (e) {
+      // Fall through to Method 2
     }
+
+    // Method 2: Mathematical Fallback (Kuwaiti Algorithm)
+    // Used when mobile browsers fail to provide Islamic calendar data
+    const day = currentTime.getDate();
+    const month = currentTime.getMonth();
+    const year = currentTime.getFullYear();
+    
+    let m = month + 1;
+    let y = year;
+    if (m < 3) {
+        y -= 1;
+        m += 12;
+    }
+
+    let jd = Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + 2 - Math.floor(y / 100) + Math.floor(Math.floor(y / 100) / 4) - 1524.5;
+    jd = Math.floor(jd) + 0.5;
+    const iEpoch = 1948439.5;
+    const iCycles = Math.floor((jd - iEpoch) / 10631);
+    const iCycleDay = Math.floor(jd - iEpoch) % 10631;
+    const iYear = Math.floor((iCycleDay) / 354.366);
+    const iYearDay = Math.floor(iCycleDay - (iYear * 354.366) + 0.5);
+    
+    const hYear = (iCycles * 30) + iYear + 1;
+    const hMonthNames = ["Muharram", "Safar", "Rabi' al-Awwal", "Rabi' al-Thani", "Jumada al-Ula", "Jumada al-Akhirah", "Rajab", "Sha'ban", "Ramadan", "Shawwal", "Dhu al-Qi'dah", "Dhu al-Hijjah"];
+    
+    let hMonth = Math.floor((iYearDay - 1) / 29.5);
+    if (hMonth > 11) hMonth = 11;
+    const hDay = Math.floor(iYearDay - (hMonth * 29.5) + 0.5);
+
+    return `${hDay} ${hMonthNames[hMonth]} ${hYear} AH`;
   }, [currentTime]);
 
   /* -----------------------------
@@ -134,13 +142,12 @@ export default function Header() {
   return (
     <>
       <header className="w-full px-4 sm:px-6 lg:px-0 max-w-5xl mx-auto mb-10">
-        {/* Top Info Bar */}
+        {/* Info Bar */}
         <div className="flex flex-col sm:flex-row justify-between gap-3 sm:items-center bg-emerald-50 border border-emerald-100 px-4 py-3 rounded-t-2xl text-emerald-900 text-sm font-medium">
           <div className="flex items-center gap-2">
             <MapPin className="w-4 h-4 text-emerald-600" />
             <span>{location}</span>
           </div>
-
           <div className="flex gap-4">
             <div className="flex items-center gap-1">
               <Sunrise className="w-4 h-4 text-amber-500" />
@@ -153,17 +160,17 @@ export default function Header() {
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Main Board */}
         <div className="bg-white border-x border-b border-emerald-100 rounded-b-2xl shadow-sm p-6 sm:p-10 text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif text-emerald-900 mb-6 leading-relaxed">
             بِسْمِ ٱللّٰهِ ٱلرَّحْمَـٰنِ ٱلرَّحِيمِ
           </h1>
 
-          <div className="inline-block bg-emerald-100 px-6 py-2 rounded-full font-bold tracking-widest text-emerald-800 uppercase mb-8 text-sm sm:text-base border border-emerald-200">
+          <div className="inline-block bg-emerald-100 px-6 py-2 rounded-full font-bold tracking-widest text-emerald-800 uppercase mb-8 text-xs sm:text-sm border border-emerald-200">
             30 Tuxedo Musallah
           </div>
 
-          {/* Live Clock */}
+          {/* Clock */}
           <div className="text-5xl sm:text-6xl md:text-8xl font-mono font-bold text-emerald-950 mb-8 tracking-tighter">
             {currentTime
               ? currentTime.toLocaleTimeString("en-CA", {
@@ -175,8 +182,8 @@ export default function Header() {
               : "00:00:00"}
           </div>
 
-          {/* Dates Section - Stacked on Mobile, Row on Desktop */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-emerald-800 font-bold text-sm sm:text-lg border-t border-emerald-50 pt-6">
+          {/* Date Row */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 text-emerald-800 font-bold text-sm sm:text-lg border-t border-emerald-50 pt-8">
             <div className="flex items-center gap-2">
               <CalendarDays className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
               <span>
@@ -191,61 +198,59 @@ export default function Header() {
 
             <span className="hidden sm:inline text-emerald-200">|</span>
 
-            <span className="text-emerald-700 bg-emerald-50 sm:bg-transparent px-3 py-1 rounded-lg sm:p-0">
+            <span className="text-emerald-900 bg-emerald-50 px-3 py-1.5 rounded-xl sm:bg-transparent sm:p-0">
               {hijriDate}
             </span>
           </div>
 
-          {/* Calendar CTA */}
+          {/* Action Button */}
           <div className="mt-10">
             <button
-              type="button"
               onClick={() => setShowCalendar(true)}
-              className="group relative inline-flex items-center justify-center rounded-xl bg-emerald-600 px-8 py-4 text-sm sm:text-base font-bold text-white transition-all hover:bg-emerald-700 hover:shadow-lg active:scale-95 overflow-hidden"
+              className="relative inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-10 py-4 text-sm sm:text-base font-bold text-white transition-all hover:bg-emerald-700 active:scale-95 shadow-lg shadow-emerald-200/50"
             >
-              <span className="relative z-10 flex items-center gap-2">
-                View Ramadan 2026 Calendar
-              </span>
-              <div className="absolute inset-0 -z-0 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+              View Ramadan 2026 Calendar
             </button>
           </div>
         </div>
       </header>
 
-      {/* Modal with Backdrop Blur */}
+      {/* Fullscreen Calendar Modal */}
       {showCalendar && (
         <div
-          className="fixed inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4"
           onClick={closeModal}
         >
           <div
-            className="bg-white w-full max-w-4xl rounded-3xl p-4 sm:p-8 relative shadow-2xl animate-in zoom-in duration-300"
+            className="bg-white w-full max-w-4xl rounded-3xl p-4 sm:p-6 relative shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={closeModal}
-              className="absolute top-4 right-5 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+              className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 transition-colors"
             >
               ✕
             </button>
 
-            <div className="relative w-full h-[60vh] sm:h-[70vh] mb-6">
+            <div className="relative w-full h-[65vh] sm:h-[75vh]">
               <Image
                 src="/ramadan-2026.png"
-                alt="30 Tuxedo Musallah Ramadan Calendar"
+                alt="30 Tuxedo Musallah Calendar"
                 fill
                 className="object-contain"
                 priority
               />
             </div>
 
-            <a
-              href="/ramadan-2026.png"
-              download
-              className="flex items-center justify-center w-full py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-md hover:shadow-xl"
-            >
-              Download Calendar (Full Resolution)
-            </a>
+            <div className="mt-4 flex gap-3">
+               <a
+                href="/ramadan-2026.png"
+                download
+                className="flex-1 text-center py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all"
+              >
+                Download PDF/Image
+              </a>
+            </div>
           </div>
         </div>
       )}
