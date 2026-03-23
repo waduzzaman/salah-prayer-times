@@ -102,7 +102,7 @@ export default function Page() {
     fajr: 5,
     dhuhr: 5,
     asr: 5,
-    maghrib: 12,
+    maghrib: 5,
     isha: 5,
   };
 
