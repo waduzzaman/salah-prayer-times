@@ -45,7 +45,7 @@ const WelcomeSplash = ({ isLoading }) => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.6 }}
                 transition={{ delay: 0.5 }}
-                className="text-[10px] tracking-[0.3em] text-emerald-900 uppercase font-bold"
+                className="text-[12px] tracking-[0.3em] text-emerald-900 uppercase font-bold"
               >
                 In the name of Allah, the Most Gracious, the Most Merciful
               </motion.p>

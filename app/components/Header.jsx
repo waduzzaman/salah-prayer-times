@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { Sunrise, Sunset, MapPin, CalendarDays } from "lucide-react";
-import SunCalc from "suncalc";
 
-export default function Header() {
+export default function Header({ sunriseTime, sunsetTime }) {
   /* -----------------------------
       ✅ Hydration Safe Mount
   ------------------------------ */
@@ -15,25 +14,12 @@ export default function Header() {
   }, []);
 
   /* -----------------------------
-      ✅ Live Clock
-  ------------------------------ */
-  const [currentTime, setCurrentTime] = useState(null);
-
-  useEffect(() => {
-    if (!mounted) return;
-    setCurrentTime(new Date());
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [mounted]);
-
-  /* -----------------------------
       ✅ Sunrise / Sunset & Location
   ------------------------------ */
-  const [sunrise, setSunrise] = useState("--:--");
-  const [sunset, setSunset] = useState("--:--");
   const [location, setLocation] = useState("Loading location...");
+  const [formattedSunrise, setFormattedSunrise] = useState("--:--");
+  const [formattedSunset, setFormattedSunset] = useState("--:--");
+  const [formattedDate, setFormattedDate] = useState("");
 
   useEffect(() => {
     if (!mounted) return;
@@ -46,22 +32,6 @@ export default function Header() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        const times = SunCalc.getTimes(new Date(), latitude, longitude);
-
-        setSunrise(
-          times.sunrise.toLocaleTimeString("en-CA", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })
-        );
-        setSunset(
-          times.sunset.toLocaleTimeString("en-CA", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          })
-        );
 
         try {
           const res = await fetch(
@@ -82,6 +52,60 @@ export default function Header() {
     );
   }, [mounted]);
 
+  // Format times for display when they change
+  useEffect(() => {
+    if (!mounted) return;
+
+    if (sunriseTime) {
+      try {
+        setFormattedSunrise(
+          sunriseTime.toLocaleTimeString("en-CA", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })
+        );
+      } catch (error) {
+        console.error("Error formatting sunrise time:", error);
+        setFormattedSunrise("--:--");
+      }
+    } else {
+      setFormattedSunrise("--:--");
+    }
+
+    if (sunsetTime) {
+      try {
+        setFormattedSunset(
+          sunsetTime.toLocaleTimeString("en-CA", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })
+        );
+      } catch (error) {
+        console.error("Error formatting sunset time:", error);
+        setFormattedSunset("--:--");
+      }
+    } else {
+      setFormattedSunset("--:--");
+    }
+
+    // Format current date
+    try {
+      setFormattedDate(
+        new Date().toLocaleDateString("en-CA", {
+          weekday: "long",
+          month: "long",
+          day: "numeric",
+          year: "numeric",
+        })
+      );
+    } catch (error) {
+      console.error("Error formatting date:", error);
+      setFormattedDate("");
+    }
+  }, [mounted, sunriseTime, sunsetTime]);
+
   return (
     <header className="w-full px-4 sm:px-6 lg:px-0 max-w-5xl mx-auto mb-10">
       {/* Info Bar */}
@@ -93,11 +117,11 @@ export default function Header() {
         <div className="flex gap-4">
           <div className="flex items-center gap-1">
             <Sunrise className="w-4 h-4 text-amber-500" />
-            <span>{sunrise}</span>
+            <span className="text-xs font-medium">{formattedSunrise}</span>
           </div>
           <div className="flex items-center gap-1">
             <Sunset className="w-4 h-4 text-orange-500" />
-            <span>{sunset}</span>
+            <span className="text-xs font-medium">{formattedSunset}</span>
           </div>
         </div>
       </div>
@@ -112,31 +136,10 @@ export default function Header() {
           30 Tuxedo Musallah
         </div>
 
-        {/* Clock */}
-        <div className="text-5xl sm:text-6xl md:text-8xl font-mono font-bold text-emerald-950 mb-8 tracking-tighter">
-          {currentTime
-            ? currentTime.toLocaleTimeString("en-CA", {
-                hour: "numeric",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true,
-              })
-            : "00:00:00"}
-        </div>
-
         {/* Date Row */}
         <div className="flex items-center justify-center gap-3 text-emerald-800 font-bold text-base sm:text-xl border-t border-emerald-50 pt-8">
           <CalendarDays className="w-5 h-5 text-emerald-600" />
-          <span>
-            {currentTime
-              ? currentTime.toLocaleDateString("en-CA", {
-                  weekday: "long",
-                  month: "long",
-                  day: "numeric",
-                  year: "numeric",
-                })
-              : ""}
-          </span>
+          <span>{formattedDate}</span>
         </div>
       </div>
     </header>

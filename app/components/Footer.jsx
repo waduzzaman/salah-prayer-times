@@ -11,29 +11,29 @@ export default function Footer() {
         <div className="mb-6 flex items-center justify-center w-12 h-12 rounded-full bg-emerald-50 text-emerald-600">
           <BookOpen className="w-6 h-6" />
         </div>
-
+        
         {/* Verse Section */}
         <div className="flex flex-col items-center max-w-2xl">
-          <blockquote className="text-xl sm:text-2xl font-serif italic text-slate-700 leading-relaxed mb-6">
+          <blockquote className="text-2xl sm:text-3xl font-serif italic text-slate-700 leading-relaxed mb-6">
             "And establish prayer and give zakah and bow with those who bow [in worship and obedience]."
           </blockquote>
           
-          <div className="flex items-center gap-3">
-            <div className="h-px w-8 bg-emerald-200"></div>
-            <cite className="text-emerald-700 font-bold uppercase tracking-widest text-xs sm:text-sm not-italic">
+          <div className="flex items-center gap-4">
+            <div className="h-px w-10 bg-emerald-200"></div>
+            <cite className="text-emerald-700 font-bold uppercase tracking-widest text-sm sm:text-base not-italic">
               Qur'an 2:43
             </cite>
-            <div className="h-px w-8 bg-emerald-200"></div>
+            <div className="h-px w-10 bg-emerald-200"></div>
           </div>
         </div>
-
+        
         {/* Bottom Info Bar */}
-        <div className="w-full mt-12 pt-8 border-t border-emerald-50 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-400 text-xs sm:text-sm font-medium">
+        <div className="w-full mt-12 pt-8 border-t border-emerald-50 flex flex-col md:flex-row justify-between items-center gap-6 text-slate-400 text-sm sm:text-base font-medium">
           <p>© {new Date().getFullYear()} 30 Tuxedo Musallah • Toronto</p>
           
-          <div className="flex items-center gap-1 text-emerald-600/60">
+          <div className="flex items-center gap-2 text-emerald-600/60">
             <span>Built with</span>
-            <Heart className="w-3 h-3 fill-current" />
+            <Heart className="w-4 h-4 fill-current" />
             <span>for the Ummah</span>
           </div>
         </div>

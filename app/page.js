@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Header from "./components/Header";
-import Countdown from "./components/Countdown";
 import Footer from "./components/Footer";
 import WelcomeSplash from "./components/WelcomeSplash";
 import { Sunrise, Sun, Cloudy, Sunset, Moon } from "lucide-react";
@@ -14,7 +13,7 @@ export default function Page() {
   /* -------------------- MOUNT & LOADING GUARD -------------------- */
   const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(true);
-  
+
   useEffect(() => setMounted(true), []);
 
   /* -------------------- STATE -------------------- */
@@ -22,7 +21,9 @@ export default function Page() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [nextIqama, setNextIqama] = useState(null);
   const [countdown, setCountdown] = useState("--:--:--");
+  const [sunriseTime, setSunriseTime] = useState(null);
   const [sunsetTime, setSunsetTime] = useState(null);
+  const [activePrayer, setActivePrayer] = useState(null);
 
   /* -------------------- HELPERS -------------------- */
   const convertTo24Hour = (timeStr) => {
@@ -86,12 +87,13 @@ export default function Page() {
     return () => clearInterval(timer);
   }, [mounted]);
 
-  /* -------------------- SUNSET -------------------- */
+  /* -------------------- SUNRISE & SUNSET -------------------- */
   useEffect(() => {
     if (!mounted || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       import("suncalc").then((SunCalc) => {
         const times = SunCalc.getTimes(new Date(), coords.latitude, coords.longitude);
+        setSunriseTime(times.sunrise);
         setSunsetTime(times.sunset);
       });
     });
@@ -110,13 +112,13 @@ export default function Page() {
   useEffect(() => {
     if (!prayerTimesData.fajr) return;
 
-    const dailyPrayers = prayerTimesData; 
+    const dailyPrayers = prayerTimesData;
 
     const iqamaEvents = Object.entries(dailyPrayers)
       .map(([name, times]) => {
         let adhan;
         if (name === "maghrib" && sunsetTime) {
-          adhan = addMinutes(sunsetTime, 1); 
+          adhan = addMinutes(sunsetTime, 1);
         } else {
           adhan = parseTime(times?.adhan);
         }
@@ -146,6 +148,50 @@ export default function Page() {
     setCountdown(`${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`);
   }, [currentTime, sunsetTime, prayerTimesData]);
 
+  /* -------------------- ACTIVE PRAYER LOGIC -------------------- */
+  useEffect(() => {
+    if (!prayerTimesData.fajr || !mounted) return;
+
+    const dailyPrayers = prayerTimesData;
+    const now = new Date();
+
+    // Build array of prayer events with adhan times
+    const prayerEvents = Object.entries(dailyPrayers)
+      .map(([name, times]) => {
+        let adhan;
+        if (name === "maghrib" && sunsetTime) {
+          adhan = addMinutes(sunsetTime, 1);
+        } else {
+          adhan = parseTime(times?.adhan);
+        }
+        return { name, adhan };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.adhan - b.adhan);
+
+    // Find current prayer: the one whose adhan has passed and next adhan hasn't come yet
+    let current = null;
+    for (let i = 0; i < prayerEvents.length; i++) {
+      const currentAdhan = prayerEvents[i].adhan;
+      let nextAdhan;
+      
+      // For last prayer (isha), next is fajr of next day
+      if (i === prayerEvents.length - 1) {
+        const fajrAdhan = parseTime(prayerTimesData.fajr?.adhan);
+        nextAdhan = addMinutes(fajrAdhan, 24 * 60); // next day
+      } else {
+        nextAdhan = prayerEvents[i + 1].adhan;
+      }
+
+      if (now >= currentAdhan && now < nextAdhan) {
+        current = prayerEvents[i].name;
+        break;
+      }
+    }
+
+    setActivePrayer(current);
+  }, [currentTime, prayerTimesData, sunsetTime]);
+
   /* -------------------- UI HELPERS -------------------- */
   const prayerIcons = {
     fajr: <Sunrise className="w-10 h-10" />,
@@ -157,7 +203,7 @@ export default function Page() {
 
   const displayPrayers = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 
-  const PrayerCard = ({ prayer }) => {
+  const PrayerRow = ({ prayer }) => {
     const adhan =
       prayer === "maghrib" && sunsetTime
         ? addMinutes(sunsetTime, 1)
@@ -165,30 +211,30 @@ export default function Page() {
 
     const iqama = adhan ? addMinutes(adhan, iqamaOffsets[prayer] || 5) : null;
 
+    // Determine if this is the active prayer
+    const isActive = activePrayer === prayer;
+
     return (
-      <section className="bg-white border border-emerald-200 rounded-3xl p-6 sm:p-8 text-center shadow-md flex flex-col items-center">
-        <div className="mb-4 text-emerald-600 p-3 rounded-2xl bg-emerald-50 border border-emerald-100">
-          {prayerIcons[prayer]}
-        </div>
-        <p className="text-2xl sm:text-3xl font-semibold uppercase text-gray-800 mb-6">
-          {prayer}
-        </p>
-        <div className="w-full bg-emerald-50 border border-emerald-200 rounded-2xl p-6 space-y-4">
-          <div className="flex flex-col items-center">
-            <span className="text-xs uppercase tracking-widest text-emerald-700 font-bold mb-1">Adhan</span>
-            <span className="font-mono text-3xl font-bold text-emerald-900">
-              {mounted ? formatTime(adhan) : "--:--"}
-            </span>
+      <tr className={`border-b border-emerald-200 hover:bg-emerald-50 ${isActive ? 'bg-red-50/50' : ''}`}>
+        <td className="px-6 py-4 text-left text-sm font-medium text-gray-900">
+          <div className="flex items-center space-x-3">
+            {prayerIcons[prayer]}
+            <p className="text-xl font-semibold uppercase text-gray-800">{prayer}</p>
           </div>
-          <div className="h-px bg-emerald-200 w-1/2 mx-auto"></div>
-          <div className="flex flex-col items-center">
-            <span className="text-xs uppercase tracking-widest text-emerald-700 font-bold mb-1">Iqama</span>
-            <span className="font-mono text-4xl sm:text-5xl font-bold text-emerald-900 tracking-tight">
-              {mounted ? formatTime(iqama) : "--:--"}
-            </span>
-          </div>
-        </div>
-      </section>
+        </td>
+        <td className="px-6 py-4 text-left text-sm font-medium text-gray-900">
+          <span className="text-sm uppercase tracking-widest text-emerald-700 font-semibold mb-1 block">Adhan</span>
+          <span className="font-mono text-4xl font-bold text-emerald-900">
+            {mounted ? formatTime(adhan) : "--:--"}
+          </span>
+        </td>
+        <td className="px-6 py-4 text-left text-sm font-medium text-gray-900">
+          <span className="text-sm uppercase tracking-widest text-emerald-700 font-semibold mb-1 block">Iqama</span>
+          <span className="font-mono text-4xl font-bold text-emerald-900 tracking-tight">
+            {mounted ? formatTime(iqama) : "--:--"}
+          </span>
+        </td>
+      </tr>
     );
   };
 
@@ -196,18 +242,28 @@ export default function Page() {
     <>
       <WelcomeSplash isLoading={loading} />
       
-      <main className={`w-full max-w-7xl mx-auto flex flex-col items-center px-4 sm:px-6 md:px-8 py-8 space-y-8 transition-opacity duration-1000 ${loading ? 'opacity-0' : 'opacity-100'}`}>
-        <Header />
-        <div className="w-full">
-          <Countdown nextPrayer={nextIqama} countdown={countdown} />
-        </div>
-        <section className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {displayPrayers.map((p) => (
-            <PrayerCard key={p} prayer={p} />
-          ))}
-        </section>
-        <Footer />
-      </main>
+       <main className={`w-full max-w-7xl mx-auto flex flex-col items-center px-4 sm:px-6 md:px-8 py-8 space-y-8 transition-opacity duration-1000 ${loading ? 'opacity-0' : 'opacity-100'}`}>
+         <Header sunriseTime={sunriseTime} sunsetTime={sunsetTime} />
+         <section className="w-full">
+           <div className="overflow-x-auto">
+             <table className="min-w-full divide-y divide-emerald-200">
+               <thead className="bg-emerald-50">
+                 <tr>
+                   <th className="px-6 py-3 text-left text-sm font-medium text-emerald-700 uppercase tracking-wider">Prayer</th>
+                   <th className="px-6 py-3 text-left text-sm font-medium text-emerald-700 uppercase tracking-wider">Adhan</th>
+                   <th className="px-6 py-3 text-left text-sm font-medium text-emerald-700 uppercase tracking-wider">Iqama</th>
+                 </tr>
+               </thead>
+               <tbody className="bg-white divide-y divide-emerald-200">
+                 {displayPrayers.map((p) => (
+                   <PrayerRow key={p} prayer={p} />
+                 ))}
+               </tbody>
+             </table>
+           </div>
+         </section>
+         <Footer />
+       </main>
     </>
   );
 }
