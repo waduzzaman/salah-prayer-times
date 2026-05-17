@@ -215,7 +215,7 @@ export default function Page() {
     const isActive = activePrayer === prayer;
 
     return (
-      <tr className={`border-b border-emerald-200 hover:bg-emerald-50 ${isActive ? 'bg-red-50/50' : ''}`}>
+      <tr className={`border-b border-emerald-200 hover:bg-emerald-50 ${isActive ? 'bg-emerald-200' : ''}`}>
         <td className="px-6 py-4 text-left text-sm font-medium text-gray-900">
           <div className="flex items-center space-x-3">
             {prayerIcons[prayer]}
